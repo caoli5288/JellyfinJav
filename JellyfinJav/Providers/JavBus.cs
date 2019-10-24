@@ -37,7 +37,8 @@ namespace JellyfinJav.JellyfinJav.Providers
                         Name = element.QuerySelector("img").GetAttribute("title"),
                         Url = element.GetAttribute("href"),
                         ImageUrl = element.QuerySelector("img").GetAttribute("src"),
-                        Code = GetCodeFromUrl(element.GetAttribute("href"))
+                        Code = GetCodeFromUrl(element.GetAttribute("href")),
+                        ReleaseDate = DateTime.Parse(element.QuerySelectorAll("date")[1].TextContent)
                     };
 
                 return ret;
@@ -72,6 +73,7 @@ namespace JellyfinJav.JellyfinJav.Providers
             var html = await new StreamReader(res.Content).ReadToEndAsync();
             var doc = await BrowsingContext.New().OpenAsync(req => req.Content(html));
 
+            var dateStr = doc.QuerySelectorAll(".container .info p")[1].TextContent.Split(' ').Last();
             var image = doc.QuerySelector(".container .screencap img");
 
             var ret = new JavBusResult
@@ -86,7 +88,8 @@ namespace JellyfinJav.JellyfinJav.Providers
                         Name = e.GetAttribute("title"),
                         ImageUrl = e.GetAttribute("src")
                     },
-                Genres = from e in doc.QuerySelectorAll(".container .genre a") select e.TextContent
+                Genres = from e in doc.QuerySelectorAll(".container .genre a") select e.TextContent,
+                ReleaseDate = DateTime.Parse(dateStr)
             };
 
             logger.LogInformation(
@@ -105,7 +108,8 @@ namespace JellyfinJav.JellyfinJav.Providers
                     OriginalTitle = oldName,
                     Name = result.Name,
                     ProviderIds = new Dictionary<string, string> {{"JavBus", result.Code}},
-                    Genres = result.Genres.ToArray()
+                    Genres = result.Genres.ToArray(),
+                    PremiereDate = result.ReleaseDate
                 },
                 People = (from actress in result.Actresses
                     select new PersonInfo
@@ -248,7 +252,9 @@ namespace JellyfinJav.JellyfinJav.Providers
                         SearchProviderName = "JavBus",
                         Name = e.Name,
                         ImageUrl = e.ImageUrl,
-                        ProviderIds = new Dictionary<string, string> {{"JavBus", e.Code}}
+                        ProviderIds = new Dictionary<string, string> {{"JavBus", e.Code}},
+                        PremiereDate = e.ReleaseDate,
+                        ProductionYear = e.ReleaseDate.Year
                     };
             }
 
@@ -261,7 +267,9 @@ namespace JellyfinJav.JellyfinJav.Providers
                     SearchProviderName = "JavBus",
                     Name = result.Name,
                     ImageUrl = result.ImageUrl,
-                    ProviderIds = new Dictionary<string, string> {{"JavBus", result.Code}}
+                    ProviderIds = new Dictionary<string, string> {{"JavBus", result.Code}},
+                    PremiereDate = result.ReleaseDate,
+                    ProductionYear = result.ReleaseDate.Year
                 }
             };
         }
@@ -270,6 +278,7 @@ namespace JellyfinJav.JellyfinJav.Providers
     public class JavBusResult
     {
         public string Code { get; set; }
+
         public string Name { get; set; }
 
         public string Url { get; set; }
@@ -279,6 +288,8 @@ namespace JellyfinJav.JellyfinJav.Providers
         public IEnumerable<Actress> Actresses { set; get; }
 
         public IEnumerable<string> Genres { set; get; }
+
+        public DateTime ReleaseDate { get; set; }
     }
 
     public class Actress
