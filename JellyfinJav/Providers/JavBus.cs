@@ -1,4 +1,10 @@
-﻿using AngleSharp;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using AngleSharp;
 using MediaBrowser.Common.Net;
 using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Entities;
@@ -6,12 +12,6 @@ using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Providers;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace JellyfinJav.JellyfinJav.Providers
@@ -32,7 +32,7 @@ namespace JellyfinJav.JellyfinJav.Providers
                 var doc = await BrowsingContext.New().OpenAsync(req => req.Content(html));
 
                 var ret = from element in doc.QuerySelectorAll(".movie-box")
-                    select new JavBusResult()
+                    select new JavBusResult
                     {
                         Name = element.QuerySelector("img").GetAttribute("title"),
                         Url = element.GetAttribute("href"),
@@ -75,7 +75,7 @@ namespace JellyfinJav.JellyfinJav.Providers
                 Name = image.GetAttribute("title"),
                 ImageUrl = image.GetAttribute("src"),
                 Actresses = from e in doc.QuerySelectorAll(".container .star-box a img")
-                    select new Actress()
+                    select new Actress
                     {
                         Name = e.GetAttribute("title"),
                         ImageUrl = e.GetAttribute("src")
@@ -88,6 +88,28 @@ namespace JellyfinJav.JellyfinJav.Providers
 
             return ret;
         }
+
+        public static MetadataResult<Movie> GetMovieFromResult(string oldName, JavBusResult result)
+        {
+            return new MetadataResult<Movie>
+            {
+                HasMetadata = true,
+                Item = new Movie
+                {
+                    OriginalTitle = oldName,
+                    Name = result.Name,
+                    ProviderIds = new Dictionary<string, string> {{"JavBus", result.Code}},
+                    Genres = result.Genres.ToArray()
+                },
+                People = (from actress in result.Actresses
+                    select new PersonInfo
+                    {
+                        Name = actress.Name,
+                        Type = "JAV Actress",
+                        ImageUrl = actress.ImageUrl
+                    }).ToList()
+            };
+        }
     }
 
     public class JavBusExternalId : IExternalId
@@ -98,7 +120,10 @@ namespace JellyfinJav.JellyfinJav.Providers
 
         public string UrlFormatString => "http://javbus.com/{0}";
 
-        public bool Supports(IHasProviderIds item) => item is Movie;
+        public bool Supports(IHasProviderIds item)
+        {
+            return item is Movie;
+        }
     }
 
     public class JavBusImageProvider : IRemoteImageProvider
@@ -131,7 +156,7 @@ namespace JellyfinJav.JellyfinJav.Providers
             {
                 var code = item.ProviderIds["JavBus"];
                 var ret = from result in await JavBus.GetAllResults(httpClient, logger, code)
-                    select new RemoteImageInfo()
+                    select new RemoteImageInfo
                     {
                         ProviderName = "JavBus",
                         Type = ImageType.Primary,
@@ -146,7 +171,7 @@ namespace JellyfinJav.JellyfinJav.Providers
 
         public Task<HttpResponseInfo> GetImageResponse(string url, CancellationToken cancellationToken)
         {
-            return httpClient.GetResponse(new HttpRequestOptions()
+            return httpClient.GetResponse(new HttpRequestOptions
             {
                 Url = url,
                 CancellationToken = cancellationToken
@@ -160,8 +185,6 @@ namespace JellyfinJav.JellyfinJav.Providers
         private readonly IHttpClient httpClient;
         private readonly ILogger logger;
 
-        public string Name => "JavBus";
-
         public JavBusMetadataProvider(IServerConfigurationManager configManager,
             IHttpClient httpClient, ILogger logger)
         {
@@ -169,6 +192,8 @@ namespace JellyfinJav.JellyfinJav.Providers
             this.httpClient = httpClient;
             this.logger = logger;
         }
+
+        public string Name => "JavBus";
 
         public Task<HttpResponseInfo> GetImageResponse(string url, CancellationToken cancellationToken)
         {
@@ -181,65 +206,48 @@ namespace JellyfinJav.JellyfinJav.Providers
 
         public async Task<MetadataResult<Movie>> GetMetadata(MovieInfo info, CancellationToken cancellationToken)
         {
-            logger.LogInformation("Jav Get metadata " + info.Name);
             if (info.ProviderIds.ContainsKey("JavBus"))
             {
-                return GetMovieFromResult(info.Name,
+                logger.LogInformation("Jav Get metadata with code " + info.ProviderIds["JavBus"]);
+                return JavBus.GetMovieFromResult(info.Name,
                     await JavBus.GetResult(httpClient, logger, info.ProviderIds["JavBus"]));
             }
 
-            logger.LogInformation($"Jav Get metadata with no code provided");
+            logger.LogInformation($"Jav Get metadata with name {info.Name}");
 
-            var results = (await GetSearchResults(info, cancellationToken)).ToList();
-
-            return results.Count() != 1
-                ? new MetadataResult<Movie>()
-                : GetMovieFromResult(info.Name,
-                    await JavBus.GetResult(httpClient, logger, results.First().ProviderIds["JavBus"]));
-        }
-
-        private static MetadataResult<Movie> GetMovieFromResult(string oldName, JavBusResult result)
-        {
-            return new MetadataResult<Movie>()
+            var results = await GetSearchResults(info, cancellationToken);
+            try
             {
-                HasMetadata = true,
-                Item = new Movie()
-                {
-                    OriginalTitle = oldName,
-                    Name = result.Name,
-                    ProviderIds = new Dictionary<string, string>() {{"JavBus", result.Code}},
-                    Genres = result.Genres.ToArray()
-                },
-                People = (from actress in result.Actresses
-                    select new PersonInfo()
-                    {
-                        Name = actress.Name,
-                        Type = "JAV Actress",
-                        ImageUrl = actress.ImageUrl
-                    }).ToList()
-            };
+                var first = results.First();
+                return JavBus.GetMovieFromResult(info.Name, await JavBus.GetResult(httpClient, logger, first.ProviderIds["JavBus"]));
+            }
+            catch (Exception e)
+            {
+                logger.LogInformation($"Jav Get metadata no result for {info.Name}, {e.Message}");
+                return new MetadataResult<Movie>();
+            }
         }
 
 
         public async Task<IEnumerable<RemoteSearchResult>> GetSearchResults(MovieInfo searchInfo,
             CancellationToken cancellationToken)
         {
-            var code = searchInfo.ProviderIds["JavBus"];
-            if (string.IsNullOrEmpty(code))
+            if (!searchInfo.ProviderIds.ContainsKey("JavBus") || string.IsNullOrWhiteSpace(searchInfo.ProviderIds["JavBus"]))
             {
                 logger.LogInformation($"Jav find movie with name {searchInfo.Name}");
-                return from e in await JavBus.GetAllResults(httpClient, logger, searchInfo.Name)
+                var code = searchInfo.Name.Split(' ').First();
+                return from e in await JavBus.GetAllResults(httpClient, logger, code)
                     select new RemoteSearchResult
                     {
                         SearchProviderName = "JavBus",
                         Name = e.Name,
                         ImageUrl = e.ImageUrl,
-                        ProviderIds = new Dictionary<string, string>() {{"JavBus", e.Code}}
+                        ProviderIds = new Dictionary<string, string> {{"JavBus", e.Code}}
                     };
             }
 
-            logger.LogInformation($"Jav find movie with id {code}");
-            var result = await JavBus.GetResult(httpClient, logger, code);
+            logger.LogInformation($"Jav find movie with id {searchInfo.ProviderIds["JavBus"]}");
+            var result = await JavBus.GetResult(httpClient, logger, searchInfo.ProviderIds["JavBus"]);
             return new[]
             {
                 new RemoteSearchResult
@@ -247,7 +255,7 @@ namespace JellyfinJav.JellyfinJav.Providers
                     SearchProviderName = "JavBus",
                     Name = result.Name,
                     ImageUrl = result.ImageUrl,
-                    ProviderIds = new Dictionary<string, string>() {{"JavBus", result.Code}}
+                    ProviderIds = new Dictionary<string, string> {{"JavBus", result.Code}}
                 }
             };
         }
