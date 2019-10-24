@@ -98,14 +98,14 @@ namespace JellyfinJav.JellyfinJav.Providers
             return ret;
         }
 
-        public static MetadataResult<Movie> GetMovieFromResult(string oldName, JavBusResult result)
+        public static MetadataResult<Movie> GetMovieFromResult(JavBusResult result)
         {
             return new MetadataResult<Movie>
             {
                 HasMetadata = true,
                 Item = new Movie
                 {
-                    OriginalTitle = oldName,
+                    OriginalTitle = $"{result.Code} {string.Join(" ", result.Genres)}",
                     Name = result.Name,
                     ProviderIds = new Dictionary<string, string> {{"JavBus", result.Code}},
                     Genres = result.Genres.ToArray(),
@@ -219,8 +219,7 @@ namespace JellyfinJav.JellyfinJav.Providers
             if (info.ProviderIds.ContainsKey("JavBus"))
             {
                 logger.LogInformation("Jav Get metadata with code " + info.ProviderIds["JavBus"]);
-                return JavBus.GetMovieFromResult(info.Name,
-                    await JavBus.GetResult(httpClient, logger, info.ProviderIds["JavBus"]));
+                return JavBus.GetMovieFromResult(await JavBus.GetResult(httpClient, logger, info.ProviderIds["JavBus"]));
             }
 
             logger.LogInformation($"Jav Get metadata with name {info.Name}");
@@ -229,7 +228,7 @@ namespace JellyfinJav.JellyfinJav.Providers
             try
             {
                 var first = results.First();
-                return JavBus.GetMovieFromResult(info.Name, await JavBus.GetResult(httpClient, logger, first.ProviderIds["JavBus"]));
+                return JavBus.GetMovieFromResult(await JavBus.GetResult(httpClient, logger, first.ProviderIds["JavBus"]));
             }
             catch (Exception e)
             {
