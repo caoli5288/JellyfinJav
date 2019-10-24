@@ -18,14 +18,14 @@ namespace JellyfinJav.JellyfinJav.Providers
 {
     public class JavBus
     {
-        public static async Task<IEnumerable<JavBusResult>> GetAllResults(IHttpClient httpClient, ILogger logger, string name)
+        public static async Task<IEnumerable<JavBusResult>> GetAllResults(IHttpClient httpClient, ILogger logger, string name, bool uncensored)
         {
             logger.LogInformation($"Jav find movies {name}");
             try
             {
                 var res = await httpClient.GetResponse(new HttpRequestOptions
                 {
-                    Url = $"https://www.javbus.com/search/{name}"
+                    Url = uncensored ? $"https://www.javbus.com/uncensored/search/{name}" : $"https://www.javbus.com/search/{name}"
                 });
 
                 var html = await new StreamReader(res.Content).ReadToEndAsync();
@@ -44,8 +44,14 @@ namespace JellyfinJav.JellyfinJav.Providers
             }
             catch (Exception e)
             {
-                logger.LogInformation($"Jav Search movies {name} exceptions. {e.Message}");
-                return new JavBusResult[0];
+                if (uncensored)
+                {
+                    logger.LogInformation($"Jav Search movies {name} exceptions. {e.Message}");
+                    return new JavBusResult[0];
+                } else
+                {
+                    return await GetAllResults(httpClient, logger, name, true);
+                }
             }
         }
 
@@ -155,7 +161,7 @@ namespace JellyfinJav.JellyfinJav.Providers
             if (item.ProviderIds.ContainsKey("JavBus"))
             {
                 var code = item.ProviderIds["JavBus"];
-                var ret = from result in await JavBus.GetAllResults(httpClient, logger, code)
+                var ret = from result in await JavBus.GetAllResults(httpClient, logger, code, false)
                     select new RemoteImageInfo
                     {
                         ProviderName = "JavBus",
@@ -236,7 +242,7 @@ namespace JellyfinJav.JellyfinJav.Providers
             {
                 logger.LogInformation($"Jav find movie with name {searchInfo.Name}");
                 var code = searchInfo.Name.Split(' ').First();
-                return from e in await JavBus.GetAllResults(httpClient, logger, code)
+                return from e in await JavBus.GetAllResults(httpClient, logger, code, false)
                     select new RemoteSearchResult
                     {
                         SearchProviderName = "JavBus",
