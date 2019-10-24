@@ -109,7 +109,8 @@ namespace JellyfinJav.JellyfinJav.Providers
                     Name = result.Name,
                     ProviderIds = new Dictionary<string, string> {{"JavBus", result.Code}},
                     Genres = result.Genres.ToArray(),
-                    PremiereDate = result.ReleaseDate
+                    PremiereDate = result.ReleaseDate,
+                    ProductionYear = result.ReleaseDate.Year
                 },
                 People = (from actress in result.Actresses
                     select new PersonInfo
