@@ -28,20 +28,23 @@ namespace JellyfinJav.JellyfinJav.Providers
                     Url = uncensored ? $"https://www.javbus.com/uncensored/search/{name}" : $"https://www.javbus.com/search/{name}"
                 });
 
-                var html = await new StreamReader(res.Content).ReadToEndAsync();
-                var doc = await BrowsingContext.New().OpenAsync(req => req.Content(html));
+                using (var reader = new StreamReader(res.Content))
+                {
+                    var html = await reader.ReadToEndAsync();
+                    var doc = await BrowsingContext.New().OpenAsync(req => req.Content(html));
 
-                var ret = from element in doc.QuerySelectorAll(".movie-box")
-                    select new JavBusResult
-                    {
-                        Name = element.QuerySelector("img").GetAttribute("title"),
-                        Url = element.GetAttribute("href"),
-                        ImageUrl = element.QuerySelector("img").GetAttribute("src"),
-                        Code = GetCodeFromUrl(element.GetAttribute("href")),
-                        ReleaseDate = DateTime.Parse(element.QuerySelectorAll("date")[1].TextContent)
-                    };
+                    var ret = from element in doc.QuerySelectorAll(".movie-box")
+                              select new JavBusResult
+                              {
+                                  Name = element.QuerySelector("img").GetAttribute("title"),
+                                  Url = element.GetAttribute("href"),
+                                  ImageUrl = element.QuerySelector("img").GetAttribute("src"),
+                                  Code = GetCodeFromUrl(element.GetAttribute("href")),
+                                  ReleaseDate = DateTime.Parse(element.QuerySelectorAll("date")[1].TextContent)
+                              };
 
-                return ret;
+                    return ret;
+                }
             }
             catch (Exception e)
             {
@@ -70,32 +73,32 @@ namespace JellyfinJav.JellyfinJav.Providers
                 Url = $"https://www.javbus.com/{code}"
             });
 
-            var html = await new StreamReader(res.Content).ReadToEndAsync();
-            var doc = await BrowsingContext.New().OpenAsync(req => req.Content(html));
-
-            var dateStr = doc.QuerySelectorAll(".container .info p")[1].TextContent.Split(' ').Last();
-            var image = doc.QuerySelector(".container .screencap img");
-
-            var ret = new JavBusResult
+            using (var reader = new StreamReader(res.Content))
             {
-                Code = code,
-                Url = res.ResponseUrl,
-                Name = image.GetAttribute("title"),
-                ImageUrl = image.GetAttribute("src"),
-                Actresses = from e in doc.QuerySelectorAll(".container .star-box a img")
-                    select new Actress
-                    {
-                        Name = e.GetAttribute("title"),
-                        ImageUrl = e.GetAttribute("src")
-                    },
-                Genres = from e in doc.QuerySelectorAll(".container .genre a") select e.TextContent,
-                ReleaseDate = DateTime.Parse(dateStr)
-            };
+                var html = await reader.ReadToEndAsync();
+                var doc = await BrowsingContext.New().OpenAsync(req => req.Content(html));
 
-            logger.LogInformation(
-                $"Jav Load movie(code={code}, title={ret.Name}), genres={string.Join(",", ret.Genres)}");
+                var dateStr = doc.QuerySelectorAll(".container .info p")[1].TextContent.Split(' ').Last();
+                var image = doc.QuerySelector(".container .screencap img");
 
-            return ret;
+                var ret = new JavBusResult
+                {
+                    Code = code,
+                    Url = res.ResponseUrl,
+                    Name = image.GetAttribute("title"),
+                    ImageUrl = image.GetAttribute("src"),
+                    Actresses = from e in doc.QuerySelectorAll(".container .star-box a img")
+                                select new Actress
+                                {
+                                    Name = e.GetAttribute("title"),
+                                    ImageUrl = e.GetAttribute("src")
+                                },
+                    Genres = from e in doc.QuerySelectorAll(".container .genre a") select e.TextContent,
+                    ReleaseDate = DateTime.Parse(dateStr)
+                };
+
+                return ret;
+            }
         }
 
         public static MetadataResult<Movie> GetMovieFromResult(JavBusResult result)
@@ -192,14 +195,11 @@ namespace JellyfinJav.JellyfinJav.Providers
 
     public class JavBusMetadataProvider : IRemoteMetadataProvider<Movie, MovieInfo>
     {
-        private readonly IServerConfigurationManager configManager;
         private readonly IHttpClient httpClient;
         private readonly ILogger logger;
 
-        public JavBusMetadataProvider(IServerConfigurationManager configManager,
-            IHttpClient httpClient, ILogger logger)
+        public JavBusMetadataProvider(IHttpClient httpClient, ILogger logger)
         {
-            this.configManager = configManager;
             this.httpClient = httpClient;
             this.logger = logger;
         }
