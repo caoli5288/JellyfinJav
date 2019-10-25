@@ -2,11 +2,11 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using AngleSharp;
 using MediaBrowser.Common.Net;
-using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Providers;
@@ -97,7 +97,7 @@ namespace JellyfinJav.JellyfinJav.Providers
                                 },
                     Genres = from e in doc.QuerySelectorAll(".container .genre a") select e.TextContent,
                     ReleaseDate = DateTime.Parse(dateStr),
-                    Screenshots = from e in doc.QuerySelectorAll(".container .sample-box img") select e.GetAttribute("src")
+                    Screenshots = from e in doc.QuerySelectorAll(".container .sample-box") select e.GetAttribute("href")
                 };
 
                 return ret;
@@ -268,26 +268,33 @@ namespace JellyfinJav.JellyfinJav.Providers
         }
 
 
-        public async Task<IEnumerable<RemoteSearchResult>> GetSearchResults(MovieInfo searchInfo,
+        public async Task<IEnumerable<RemoteSearchResult>> GetSearchResults(MovieInfo searchInfo, 
             CancellationToken cancellationToken)
         {
-            if (!searchInfo.ProviderIds.ContainsKey("JavBus") || string.IsNullOrWhiteSpace(searchInfo.ProviderIds["JavBus"]))
+            var code = searchInfo.GetProviderId(JavBus.Name);
+
+            if (string.IsNullOrEmpty(code))
             {
-                logger.LogInformation($"Jav find movie with name {searchInfo.Name}");
-                var code = searchInfo.Name.Split(' ').First();
+                logger.LogInformation($"Jav search {searchInfo.Name}");
+
+                code = new Regex("[A-Za-z]+-[0-9]+").Match(searchInfo.Name).Value;
+                if (string.IsNullOrEmpty(code))
+                {
+                    code = searchInfo.Name.Split(' ').First();
+                }
+
                 return from e in await JavBus.GetAllResults(httpClient, logger, code, false)
-                    select new RemoteSearchResult
-                    {
-                        SearchProviderName = "JavBus",
-                        Name = e.Name,
-                        ImageUrl = e.ImageUrl,
-                        ProviderIds = new Dictionary<string, string> {{"JavBus", e.Code}},
-                        PremiereDate = e.ReleaseDate,
-                        ProductionYear = e.ReleaseDate.Year
-                    };
+                       select new RemoteSearchResult
+                       {
+                           SearchProviderName = "JavBus",
+                           Name = e.Name,
+                           ImageUrl = e.ImageUrl,
+                           ProviderIds = new Dictionary<string, string> {{"JavBus", e.Code}},
+                           PremiereDate = e.ReleaseDate,
+                           ProductionYear = e.ReleaseDate.Year
+                       };
             }
 
-            logger.LogInformation($"Jav find movie with id {searchInfo.ProviderIds["JavBus"]}");
             var result = await JavBus.GetResult(httpClient, logger, searchInfo.ProviderIds["JavBus"]);
             return new[]
             {
