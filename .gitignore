@@ -5,3 +5,5 @@ Debug/
 docker-config/
 obj/
 videos/
+/.idea
+/.vs
