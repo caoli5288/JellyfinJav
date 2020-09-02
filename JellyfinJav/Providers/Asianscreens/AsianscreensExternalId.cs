@@ -1,6 +1,7 @@
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Model.Entities;
+using MediaBrowser.Model.Providers;
 
 namespace JellyfinJav.Providers.R18
 {
@@ -9,6 +10,10 @@ namespace JellyfinJav.Providers.R18
         public string Name => "Asianscreens";
         public string Key => "Asianscreens";
         public string UrlFormatString => "https://www.asianscreens.com/{0}.asp";
+
+        public string ProviderName => "Asianscreens";
+
+        public ExternalIdMediaType? Type => ExternalIdMediaType.Person;
 
         public bool Supports(IHasProviderIds item)
         {

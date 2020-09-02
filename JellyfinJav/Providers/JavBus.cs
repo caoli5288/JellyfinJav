@@ -135,6 +135,10 @@ namespace JellyfinJav.JellyfinJav.Providers
 
         public string UrlFormatString => "http://javbus.com/{0}";
 
+        public string ProviderName => "JavBus";
+
+        public ExternalIdMediaType? Type => ExternalIdMediaType.Movie;
+
         public bool Supports(IHasProviderIds item)
         {
             return item is Movie;
@@ -146,10 +150,10 @@ namespace JellyfinJav.JellyfinJav.Providers
         private readonly IHttpClient httpClient;
         private readonly ILogger logger;
 
-        public JavBusImageProvider(IHttpClient httpClient, ILogger logger)
+        public JavBusImageProvider(IHttpClient httpClient, ILoggerFactory loggerFactory)
         {
             this.httpClient = httpClient;
-            this.logger = logger;
+            this.logger = loggerFactory.CreateLogger("JavBus");
         }
 
         public bool Supports(BaseItem item)
@@ -223,10 +227,10 @@ namespace JellyfinJav.JellyfinJav.Providers
         private readonly IHttpClient httpClient;
         private readonly ILogger logger;
 
-        public JavBusMetadataProvider(IHttpClient httpClient, ILogger logger)
+        public JavBusMetadataProvider(IHttpClient httpClient, ILoggerFactory loggerFactory)
         {
             this.httpClient = httpClient;
-            this.logger = logger;
+            this.logger = loggerFactory.CreateLogger("JavBusMetadata");
         }
 
         public string Name => "JavBus";
