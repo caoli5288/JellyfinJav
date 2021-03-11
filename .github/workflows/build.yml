@@ -33,6 +33,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: bin\Release\net5.0\JellyfinJav.dll
+        asset_path: JellyfinJav\bin\Release\net5.0\JellyfinJav.dll
         asset_name: JellyfinJav.dll
         asset_content_type: application/octet-stream
