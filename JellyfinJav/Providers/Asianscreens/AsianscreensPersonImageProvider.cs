@@ -7,18 +7,19 @@ using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Providers;
 using System;
+using System.Net.Http;
 
 namespace JellyfinJav.Providers.Asianscreens
 {
     public class AsianscreensPersonImageProvider : IRemoteImageProvider
     {
-        private readonly IHttpClient httpClient;
+        private readonly IHttpClientFactory httpClients;
 
         public string Name => "Asianscreens";
 
-        public AsianscreensPersonImageProvider(IHttpClient httpClient)
+        public AsianscreensPersonImageProvider(IHttpClientFactory httpClients)
         {
-            this.httpClient = httpClient;
+            this.httpClients = httpClients;
         }
 
         public Task<IEnumerable<RemoteImageInfo>> GetImages(BaseItem item, CancellationToken cancelToken)
@@ -41,13 +42,11 @@ namespace JellyfinJav.Providers.Asianscreens
             return Task.FromResult<IEnumerable<RemoteImageInfo>>(result);
         }
 
-        public Task<HttpResponseInfo> GetImageResponse(string url, CancellationToken cancelToken)
+        public Task<HttpResponseMessage> GetImageResponse(string url, CancellationToken cancelToken)
         {
-            return httpClient.GetResponse(new HttpRequestOptions
-            {
-                Url = url,
-                CancellationToken = cancelToken
-            });
+            using (var httpClient = httpClients.CreateClient()) {
+                return httpClient.GetAsync(url, cancelToken);
+            }
         }
 
         public IEnumerable<ImageType> GetSupportedImages(BaseItem item)

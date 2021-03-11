@@ -7,18 +7,19 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediaBrowser.Model.Providers;
 using System.Linq;
+using System.Net.Http;
 
 namespace JellyfinJav.Providers.Asianscreens
 {
     public class AsianscreensPersonProvider : IRemoteMetadataProvider<Person, PersonLookupInfo>
     {
-        private readonly IHttpClient httpClient;
+        private readonly IHttpClientFactory httpClients;
 
         public string Name => "Asianscreens";
 
-        public AsianscreensPersonProvider(IHttpClient httpClient)
+        public AsianscreensPersonProvider(IHttpClientFactory httpClients)
         {
-            this.httpClient = httpClient;
+            this.httpClients = httpClients;
         }
 
         public async Task<IEnumerable<RemoteSearchResult>> GetSearchResults(PersonLookupInfo info, CancellationToken cancelationToken)
@@ -63,13 +64,11 @@ namespace JellyfinJav.Providers.Asianscreens
             };
         }
 
-        public Task<HttpResponseInfo> GetImageResponse(string url, CancellationToken cancelToken)
+        public Task<HttpResponseMessage> GetImageResponse(string url, CancellationToken cancelToken)
         {
-            return httpClient.GetResponse(new HttpRequestOptions
-            {
-                Url = url,
-                CancellationToken = cancelToken
-            });
+            using (var httpClient = httpClients.CreateClient()) {
+                return httpClient.GetAsync(url, cancelToken);
+            }
         }
     }
 }
