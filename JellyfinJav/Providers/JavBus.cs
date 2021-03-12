@@ -27,8 +27,6 @@ namespace JellyfinJav.JellyfinJav.Providers
             try
             {
                 var contents = await httpClient.GetStringAsync(uncensored ? $"https://www.javbus.com/uncensored/search/{name}" : $"https://www.javbus.com/search/{name}");
-                logger.LogInformation(contents);
-
                 var doc = await BrowsingContext.New().OpenAsync(req => req.Content(contents));
 
                 var ret = from element in doc.QuerySelectorAll(".movie-box")
