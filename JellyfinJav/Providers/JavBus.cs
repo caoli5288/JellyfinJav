@@ -21,6 +21,13 @@ namespace JellyfinJav.JellyfinJav.Providers
     {
         public static string Name => "JavBus";
 
+        public static string AsFullUrl(string url) {
+            if (url.StartsWith("/")) {
+                return "https://javbus.com" + url;
+            }
+            return url;
+        }
+
         public static async Task<IEnumerable<JavBusResult>> GetResults(HttpClient httpClient, ILogger logger, string name, bool uncensored)
         {
             logger.LogInformation($"Jav find movies {name}");
@@ -34,7 +41,7 @@ namespace JellyfinJav.JellyfinJav.Providers
                           {
                               Name = element.QuerySelector("img").GetAttribute("title"),
                               Url = element.GetAttribute("href"),
-                              ImageUrl = element.QuerySelector("img").GetAttribute("src"),
+                              ImageUrl = AsFullUrl(element.QuerySelector("img").GetAttribute("src")),
                               Code = GetCodeFromUrl(element.GetAttribute("href")).ToUpper(),
                               ReleaseDate = DateTime.Parse(element.QuerySelectorAll("date")[1].TextContent)
                           };
@@ -77,12 +84,12 @@ namespace JellyfinJav.JellyfinJav.Providers
                 Code = code.ToUpper(),
                 Url = url,
                 Name = image.GetAttribute("title"),
-                ImageUrl = "https://www.javbus.com" + image.GetAttribute("src"),
+                ImageUrl = AsFullUrl(image.GetAttribute("src")),
                 Actresses = from e in doc.QuerySelectorAll(".container .star-box a img")
                             select new Actress
                             {
                                 Name = e.GetAttribute("title"),
-                                ImageUrl = "https://www.javbus.com" + e.GetAttribute("src")
+                                ImageUrl = AsFullUrl(e.GetAttribute("src"))
                             },
                 Genres = from e in doc.QuerySelectorAll(".container .genre a") select e.TextContent,
                 ReleaseDate = DateTime.Parse(dateStr),
