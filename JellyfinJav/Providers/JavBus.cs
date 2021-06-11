@@ -77,12 +77,12 @@ namespace JellyfinJav.JellyfinJav.Providers
                 Code = code.ToUpper(),
                 Url = url,
                 Name = image.GetAttribute("title"),
-                ImageUrl = image.GetAttribute("src"),
+                ImageUrl = "https://www.javbus.com" + image.GetAttribute("src"),
                 Actresses = from e in doc.QuerySelectorAll(".container .star-box a img")
                             select new Actress
                             {
                                 Name = e.GetAttribute("title"),
-                                ImageUrl = e.GetAttribute("src")
+                                ImageUrl = "https://www.javbus.com" + e.GetAttribute("src")
                             },
                 Genres = from e in doc.QuerySelectorAll(".container .genre a") select e.TextContent,
                 ReleaseDate = DateTime.Parse(dateStr),
